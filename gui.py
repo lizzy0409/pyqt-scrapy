@@ -117,7 +117,7 @@ class CrawlWindows(QWidget):
         self.energyRatingValues = [0, 1, 2, 3, 4, 5, 6]
         self.channel = 0
         self.priceType = self.channel % 2
-        self.database = []
+        self.database = {}
 
         self.resize(600, 300)
         self.setWindowIcon(QIcon(':icons/favicon.ico'))
@@ -592,8 +592,8 @@ class CrawlWindows(QWidget):
 
     def hideSTH(self):
         # self.label_7.hide()
-        self.lineEditAreaSearch.hide()
-        # self.listViewAreaList.hide()
+        # self.lineEditAreaSearch.hide()
+        self.listViewAreaList.hide()
 
     def retranslateUi(self):
         _translate = QtCore.QCoreApplication.translate
@@ -802,6 +802,17 @@ class CrawlWindows(QWidget):
             'includePropertiesWithin': 'includesurrounding',
         }
 
+        location_string = self.lineEditAreaSearch.text()
+
+        # Replace spaces, commas, and hyphens with hyphens
+        cleaned_string = re.sub(r'[\s,/-]+', '-', location_string)
+
+        # Convert to lowercase
+        locations = cleaned_string.lower()
+
+        if locations != "":
+            query_params["locations"] = locations
+
         # Set Property Param
         if not self.checkProperties[0].isChecked():
             properties = ""
@@ -872,29 +883,31 @@ class LogThread(QThread):
     def run(self) -> None:
         while True:
             if not self.gui.Q.empty():
-                data = self.gui.Q.get()
+                record = self.gui.Q.get()
                 # self.gui.log_browser.append(data)
 
-                if type(data) == str and '采集结束' in data:
+                if type(record) == str and '采集结束' in record:
                     self.gui.btnSearch.setText('Start Search')
                     break
 
-                row = self.gui.tableViewResult.model().rowCount()
-                data['row'] = row
-                self.gui.self.database[data['id']] = data
-                self.gui.tableViewResult.model().insertRow(
-                    row,
-                    [
-                        QStandardItem(data['title']),
-                        QStandardItem(data['street']),
-                        QStandardItem(data['suburb']),
-                        QStandardItem(data['property']),
-                        QStandardItem(data['price']),
-                        QStandardItem(data['area']),
-                        QStandardItem(data['agency_company']),
-                        QStandardItem(self.gui.targetUrl + data['url']),
-                    ]
-                )
+                if record['type'] == 1:
+                    data = record['data']
+                    row = self.gui.tableViewResult.model().rowCount()
+                    data['rowNum'] = row
+                    self.gui.database[data['id']] = data
+                    self.gui.tableViewResult.model().insertRow(
+                        row,
+                        [
+                            QStandardItem(data['title']),
+                            QStandardItem(data['address']['streetAddress']),
+                            QStandardItem(data['address']['suburbAddress']),
+                            QStandardItem(", ".join(data['attributes']['propertyTypes'])),
+                            QStandardItem(data['details']['price']),
+                            QStandardItem(data['attributes']['area']),
+                            QStandardItem(data['agencies'][0]['name']),
+                            QStandardItem(self.gui.targetUrl + data['pdpUrl']),
+                        ]
+                    )
 
                 # 确保滑动条到底
                 # cursor = self.gui.log_browser.textCursor()

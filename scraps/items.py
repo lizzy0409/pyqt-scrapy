@@ -11,13 +11,6 @@ import scrapy
 class scrapsItem(scrapy.Item):
     # define the fields for your item here like:
     # name = scrapy.Field()
-    id = scrapy.Field()
-    title = scrapy.Field()
-    agency_company = scrapy.Field()
-    url = scrapy.Field()
-    street = scrapy.Field()
-    suburb = scrapy.Field()
-    price = scrapy.Field()
-    area = scrapy.Field()
-    property = scrapy.Field()
+    type = scrapy.Field()
+    data = scrapy.Field()
     # pass

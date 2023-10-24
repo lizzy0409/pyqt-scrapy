@@ -8,7 +8,7 @@ NEWSPIDER_MODULE = 'scraps.spiders'
 LOG_LEVEL = 'INFO'
 LOG_FILE = 'output.log'
 
-ROBOTSTXT_OBEY = True
+ROBOTSTXT_OBEY = False
 
 SAVE_CONTENT = 'scraps.jl'
 ITEM_PIPELINES = {

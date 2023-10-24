@@ -1,0 +1,30 @@
+import scrapy
+from scraps.items import scrapsItem  # Import your item class if you've defined one
+
+class MySpider(scrapy.Spider):
+    name = 'myspider'
+    start_urls = ['https://www.realcommercial.com.au/for-sale/?includePropertiesWithin=includesurrounding']  # Start from the first page
+
+    def parse(self, response):
+        # Your scraping logic here
+        for item in response.xpath('//div[@class="item"]'):
+            my_item = scrapsItem()
+            my_item['title'] = item.xpath('h2/text()').get()
+            my_item['description'] = item.xpath('p/text()').get()
+            yield my_item
+
+        # Extract the current page number
+        url_parts = urlparse(response.url)
+        params = parse_qs(url_parts.query)
+        if 'page' in params:
+            current_page = int(params['page'][0])
+        else:
+            current_page = 1
+
+        # Calculate the next page URL
+        next_page = current_page + 1
+        next_page_url = f"https://www.realcommercial.com.au/for-sale/?includePropertiesWithin=includesurrounding&page={next_page}"
+
+        # Limit to scraping 10 pages
+        if next_page <= 10:
+            yield response.follow(next_page_url, callback=self.parse)
