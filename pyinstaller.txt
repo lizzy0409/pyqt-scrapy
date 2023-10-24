@@ -1,0 +1,5 @@
+pyinstaller -F --add-data=mime.types;scrapy --add-data=VERSION;scrapy --add-data=scraps/*.py;scraps --add-data=scraps/spiders/*.py;scraps/spiders --runtime-hook=generate_cfg.py gui.py
+
+pyinstaller -F -w -i ./favicon.ico --add-data=mime.types;scrapy --add-data=VERSION;scrapy --add-data=scraps/*.py;scraps --add-data=scraps/spiders/*.py;scraps/spiders --runtime-hook=generate_cfg.py gui.py
+
+pyinstaller -F -w -i F:\Python_FSD\Python-pyqt5\pyqt5scrapy\scraps\favicon.ico --add-data=mime.types;scrapy --add-data=VERSION;scrapy --add-data=scraps/*.py;scraps --add-data=scraps/spiders/*.py;scraps/spiders --runtime-hook=generate_cfg.py --exclude-module=pandas --exclude-module=numpy --upx-dir=./upx-3.95-win64 --upx-exclude=vcruntime140.dll gui.py
