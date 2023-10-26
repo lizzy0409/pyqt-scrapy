@@ -896,9 +896,8 @@ class LogThread(QThread):
         while True:
             if not self.gui.Q.empty():
                 record = self.gui.Q.get()
-                # self.gui.log_browser.append(data)
-
-                if type(record) == str and '采集结束' in record:
+                                
+                if record['type'] == 4:
                     self.gui.btnSearch.setText('Start Search')
                     break
 
@@ -952,13 +951,6 @@ class LogThread(QThread):
                         print("An error occurred")
                         print(f"Error details: {e}")
 
-                # 确保滑动条到底
-                # cursor = self.gui.log_browser.textCursor()
-                # pos = len(self.gui.log_browser.toPlainText())
-                # cursor.setPosition(pos)
-                # self.gui.log_browser.setTextCursor(cursor)
-
-                # 睡眠20ms
                 self.msleep(20)
 
 

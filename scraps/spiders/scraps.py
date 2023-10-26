@@ -157,5 +157,7 @@ class scrapspider(scrapy.Spider):
 
         yield data
 
-    def close(spider, reason):
-        spider.Q.put('采集结束')
+    def close(self, reason):
+        items = scrapsItem()
+        items['type'] = 4
+        self.Q.put(items)
