@@ -41,10 +41,12 @@ class scrapspider(scrapy.Spider):
 
         items = scrapsItem()
 
-        if len(json_data['exactMatchListings']) == 0:
-            return
-
         list = json_data['exactMatchListings']
+        if params['includePropertiesWithin'][0] == 'includesurrounding':
+            list += json_data['surroundingSuburbListings']
+
+        if len(list) == 0:
+            return
 
         for item in list:
             id = item['id']

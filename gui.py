@@ -96,7 +96,8 @@ class CrawlWindows(QWidget):
     def __init__(self):
         super(CrawlWindows, self).__init__()
 
-        self.targetUrl = 'https://www.realcommercial.com.au/'
+        self.domain = 'www.realcommercial.com.au'
+        self.targetUrl = f'https://{self.domain}'
         self.channelTexts = ["Buy", "Lease", "Sold", "Leased"]
         self.channelParams = ["for-sale", "for-lease", "sold", "leased"]
         self.propertyTexts = ["All types", "Shop && Retail", "Develpment Sites && Land",
@@ -124,6 +125,7 @@ class CrawlWindows(QWidget):
         self.channel = 0
         self.priceType = self.channel % 2
         self.database = {}
+        self.datefrom = ""
 
         self.resize(600, 300)
         self.setWindowIcon(QIcon(':icons/favicon.ico'))
@@ -172,6 +174,11 @@ class CrawlWindows(QWidget):
             # ua = self.ua_line.text().strip()
             # is_obey = True if self.obey_combo.currentText() == 'Yes' else False
             # save_location = self.save_location.text().strip()
+            self.datefrom = self.dateSelect.date().toString("yyyy-MM-dd")
+
+            self.tableViewResult.model().setFilterKeyColumn(1)  # 1 corresponds to the second column
+            self.tableViewResult.model().setFilterMinimumDate(self.datefrom)
+
             self.p = Process(target=crawl_run, args=(
                 self.Q, self.setupURL(), self.database, self.priceType))
             # self.log_browser.setText('The collection process is starting...')
@@ -254,6 +261,12 @@ class CrawlWindows(QWidget):
         self.label_7.setFont(font)
         self.label_7.setObjectName("label_7")
         self.verticalLayout_2.addWidget(self.label_7)
+        self.surroundingCheckBox = QtWidgets.QCheckBox(
+            self.scrollAreaWidgetContents)
+        self.surroundingCheckBox.setObjectName("surroundingCheckBox")
+        self.surroundingCheckBox.setChecked(True)
+        self.verticalLayout_2.addWidget(self.surroundingCheckBox)
+
         self.lineEditAreaSearch = QtWidgets.QLineEdit(
             self.scrollAreaWidgetContents)
         font = QtGui.QFont()
@@ -522,8 +535,6 @@ class CrawlWindows(QWidget):
         self.label.setFont(font)
         self.label.setObjectName("label")
         self.verticalLayout_26.addWidget(self.label)
-        self.horizontalLayout_34 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_34.setObjectName("horizontalLayout_34")
         self.comboCarSpaces = QtWidgets.QComboBox(
             self.scrollAreaWidgetContents)
         self.comboCarSpaces.setMinimumSize(QtCore.QSize(150, 0))
@@ -533,8 +544,7 @@ class CrawlWindows(QWidget):
         self.comboCarSpaces.setObjectName("comboCarSpaces")
         for x in range(len(self.carSpaceTexts)):
             self.comboCarSpaces.addItem(self.carSpaceTexts[x])
-        self.horizontalLayout_34.addWidget(self.comboCarSpaces)
-        self.verticalLayout_26.addLayout(self.horizontalLayout_34)
+        self.verticalLayout_26.addWidget(self.comboCarSpaces)
         self.verticalLayout_3.addLayout(self.verticalLayout_26)
         self.verticalLayout_25 = QtWidgets.QVBoxLayout()
         self.verticalLayout_25.setObjectName("verticalLayout_25")
@@ -546,8 +556,6 @@ class CrawlWindows(QWidget):
         self.label_4.setFont(font)
         self.label_4.setObjectName("label_4")
         self.verticalLayout_25.addWidget(self.label_4)
-        self.horizontalLayout_35 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_35.setObjectName("horizontalLayout_35")
         self.comboNABERS = QtWidgets.QComboBox(self.scrollAreaWidgetContents)
         self.comboNABERS.setMinimumSize(QtCore.QSize(150, 0))
         font = QtGui.QFont()
@@ -556,8 +564,22 @@ class CrawlWindows(QWidget):
         self.comboNABERS.setObjectName("comboNABERS")
         for x in range(len(self.energyRatingTexts)):
             self.comboNABERS.addItem(self.energyRatingTexts[x])
-        self.horizontalLayout_35.addWidget(self.comboNABERS)
-        self.verticalLayout_25.addLayout(self.horizontalLayout_35)
+        self.verticalLayout_25.addWidget(self.comboNABERS)
+        self.label_8 = QtWidgets.QLabel(self.scrollAreaWidgetContents)
+        font = QtGui.QFont()
+        font.setPointSize(9)
+        font.setBold(True)
+        font.setWeight(75)
+        self.label_8.setFont(font)
+        self.label_8.setObjectName("label_8")
+        self.verticalLayout_25.addWidget(self.label_8)
+        font = QtGui.QFont()
+        font.setPointSize(9)
+        self.dateSelect = QtWidgets.QDateEdit()
+        self.dateSelect.setFont(font)
+        self.dateSelect.setDisplayFormat("yyyy-MM-dd")
+        self.dateSelect.setObjectName("dateSelect")
+        self.verticalLayout_25.addWidget(self.dateSelect)
         spacerItem4 = QtWidgets.QSpacerItem(
             20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.verticalLayout_25.addItem(spacerItem4)
@@ -615,6 +637,8 @@ class CrawlWindows(QWidget):
             self.channels[x].setText(_translate(
                 "Dialog", self.channelTexts[x]))
         self.label_7.setText(_translate("Dialog", "Area"))
+        self.surroundingCheckBox.setText(
+            _translate("Dialog", "Include surrounding suburbs"))
         self.groupBox_6.setTitle(_translate("Dialog", "Property types"))
         for x in range(10):
             self.checkProperties[x].setText(
@@ -639,8 +663,12 @@ class CrawlWindows(QWidget):
             _translate("Dialog", "Any"))
         self.label.setText(_translate("Dialog", "Car spaces"))
         self.label_4.setText(_translate("Dialog", "NABERS Energy Rating"))
+        self.label_8.setText(_translate("Dialog", "Date Updated From"))
         self.btnClearFilters.setText(_translate("Dialog", "Clear all filters"))
         self.btnSearch.setText(_translate("Dialog", "Start Search"))
+        header_labels = ["ID", "Title", "Date Updated", "Street", "Suburb", "State", "Postcode", "Price",
+                         "Price Range", "Agency Company", "Agency Contact", "Property", "Land Area", "Floor Area", "Car Spaces", "Link"]
+        self.tableViewResult.model().setHorizontalHeaderLabels(header_labels)
 
     def connectSignal(self):
         self.btnShowFilter.clicked.connect(self.onShowFilter)
@@ -805,14 +833,17 @@ class CrawlWindows(QWidget):
 
     def setupURL(self):
         # Define the base URL
-        base_url = self.targetUrl
+        base_url = self.targetUrl + '/'
 
         base_url += self.channelParams[self.channel] + '/'
 
         # Define the GET parameters as a dictionary
-        query_params = {
-            'includePropertiesWithin': 'includesurrounding',
-        }
+        query_params = {}
+
+        if self.surroundingCheckBox.isChecked():
+            query_params["includePropertiesWithin"] = 'includesurrounding'
+        else:
+            query_params["includePropertiesWithin"] = 'excludesurrounding'
 
         location_string = self.lineEditAreaSearch.text()
 
@@ -884,6 +915,7 @@ class CrawlWindows(QWidget):
 
         # Call the function to build the URL
         final_url = build_url(base_url, query_params)
+        print(final_url)
         return final_url
 
 
@@ -896,7 +928,7 @@ class LogThread(QThread):
         while True:
             if not self.gui.Q.empty():
                 record = self.gui.Q.get()
-                                
+
                 if record['type'] == 4:
                     self.gui.btnSearch.setText('Start Search')
                     break
@@ -907,45 +939,109 @@ class LogThread(QThread):
                     row = self.gui.tableViewResult.model().rowCount()
                     data['rowNum'] = row
                     self.gui.database[id] = data
+
+                    if self.gui.targetUrl not in data['pdpUrl']:
+                        data['pdpUrl'] = self.gui.targetUrl + data['pdpUrl']
+
+        #header_labels = ["ID", "Title", "Date Updated", "Street", "Suburb", "State", "Postcode", "Price", "Price Range", "Agency Company", "Agency Contact", "Property", "Land Area", "Floor Area", "Carspaces"]
                     self.gui.tableViewResult.model().insertRow(
                         row,
                         [
+                            # ID
+                            QStandardItem(""),
+                            # Title
                             QStandardItem(isset('title', data)),
-                            QStandardItem(data['address']['streetAddress']),
-                            QStandardItem(data['address']['suburbAddress']),
+                            # Date Updated
+                            QStandardItem(""),
+                            # Street
+                            QStandardItem(
+                                isset('streetAddress', data['address'])),
+                            # Suburb
+                            QStandardItem(""),
+                            # State
+                            QStandardItem(""),
+                            # Postcode
+                            QStandardItem(""),
+                            # Price Posted
+                            QStandardItem(isset('price', data['details'])),
+                            # Approx. Price Range
+                            QStandardItem(
+                                f'{data["minPrice"]} - {data["maxPrice"]}'),
+                            # Agency Comp.
+                            QStandardItem(
+                                data['agencies'][0]['name']),
+                            # Agency Contact
+                            QStandardItem(""),
+                            # Property Type
                             QStandardItem(
                                 ", ".join(data['attributes']['propertyTypes'])),
-                            QStandardItem(data['details']['price']),
-                            QStandardItem(str(data['minPrice'])),
-                            QStandardItem(str(data['maxPrice'])),
+                            # Land Area
+                            QStandardItem(""),
+                            # Floor Area
                             QStandardItem(data['attributes']['area']),
-                            QStandardItem(self.gui.targetUrl + data['pdpUrl']),
-                            QStandardItem(data['agencies'][0]['name']),
+                            # Car spaces
+                            QStandardItem(""),
+                            # Link
+                            QStandardItem(data['pdpUrl']),
                         ]
                     )
                 elif record['type'] == 2:
                     data = record['data']
-                    self.gui.database[id]['detail'] = data
                     rowNum = self.gui.database[id]['rowNum']
-                    self.gui.tableViewResult.model().setItem(
-                        rowNum, 10, QStandardItem(data['lastUpdatedAt']))
+
+                    updatedAt = data['lastUpdatedAt']
+                    address = data['address']
+                    street = address["streetAddress"]
+                    suburb = address["suburb"]
+                    state = address["state"]
+                    postcode = address["postcode"]
+                    uid = re.sub(r'[^a-zA-Z0-9]', '',
+                                 street)[:4] + suburb[:2] + state[:2]
+
+                    if updatedAt < self.gui.datefrom:
+                        self.gui.tableViewResult.model().item(rowNum, 0).setEnabled(False)
+
+                    self.gui.database[id]['detail'] = data
+                    self.gui.database[id]['uid'] = uid
+
+                    self.gui.tableViewResult.model().item(
+                        rowNum, 0).setText(uid)
+                    self.gui.tableViewResult.model().item(
+                        rowNum, 2).setText(updatedAt)
+                    self.gui.tableViewResult.model().item(
+                        rowNum, 4).setText(suburb)
+                    self.gui.tableViewResult.model().item(
+                        rowNum, 5).setText(state)
+                    self.gui.tableViewResult.model().item(
+                        rowNum, 6).setText(postcode)
+
+                    for attr in data['attributes']:
+                        if attr['id'] == "floor-area":
+                            self.gui.tableViewResult.model().item(
+                                rowNum, 13).setText(attr["value"])
+                        elif attr['id'] == "land-area":
+                            self.gui.tableViewResult.model().item(
+                                rowNum, 12).setText(attr["value"])
+                        elif attr['id'] == "car-spaces":
+                            self.gui.tableViewResult.model().item(
+                                rowNum, 14).setText(attr["value"])
+
                     if len(data["agencies"]) and "salespeople" in data["agencies"][0] and len(data["agencies"][0]["salespeople"]):
                         salespeople = data['agencies'][0]["salespeople"]
                         contacts = ""
                         for contact in salespeople:
                             contacts += f'{contact["name"]} : {contact["phone"]["display"]}' + " "
-                        self.gui.tableViewResult.model().setItem(
-                            rowNum, 11, QStandardItem(contacts))
+                        self.gui.tableViewResult.model().item(
+                            rowNum, 10).setText(contacts)
+
                 elif record['type'] == 3:
                     try:
                         data = record['data']
                         rowNum = self.gui.database[id]['rowNum']
                         self.gui.database[id]['minPrice'] = data['minPrice']
-                        self.gui.tableViewResult.model().setItem(
-                            rowNum, 5, QStandardItem(str(data['minPrice'])))
                         self.gui.database[id]['maxPrice'] = data['maxPrice']
-                        self.gui.tableViewResult.model().setItem(
-                            rowNum, 6, QStandardItem(str(data['maxPrice'])))
+                        self.gui.tableViewResult.model().item(
+                            rowNum, 8).setText(f'{data["minPrice"]} - {data["maxPrice"]}')
                     except Exception as e:
                         # Handle other exceptions (generic Exception class)
                         print("An error occurred")
@@ -959,7 +1055,8 @@ def crawl_run(Q, url, dataset, isLease):
     settings = get_project_settings()
 
     process = CrawlerProcess(settings=settings)
-    process.crawl(scrapspider, Q=Q, base_url=url, dataset=dataset, isLease=isLease)
+    process.crawl(scrapspider, Q=Q, base_url=url,
+                  dataset=dataset, isLease=isLease)
     process.start()
 
     """
