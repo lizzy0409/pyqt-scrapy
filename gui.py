@@ -85,6 +85,12 @@ import scrapy.core.downloader.handlers.ftp
 import scrapy.core.downloader.contextfactory
 
 
+def isset(key, array):
+    if (key in array):
+        return array[key]
+    return ''
+
+
 class CrawlWindows(QWidget):
 
     def __init__(self):
@@ -157,11 +163,17 @@ class CrawlWindows(QWidget):
             # self.log_browser.clear()
             model = self.tableViewResult.model()
             model.removeRows(0, model.rowCount())
+            self.database.clear()
+
+            # for key, value in self.database.items():
+            #     value['rowNum'] = -1
+
             self.btnSearch.setText('Stop Search')
             # ua = self.ua_line.text().strip()
             # is_obey = True if self.obey_combo.currentText() == 'Yes' else False
             # save_location = self.save_location.text().strip()
-            self.p = Process(target=crawl_run, args=(self.Q, self.setupURL(),))
+            self.p = Process(target=crawl_run, args=(
+                self.Q, self.setupURL(), self.database, self.priceType))
             # self.log_browser.setText('The collection process is starting...')
             self.p.start()
 
@@ -890,24 +902,55 @@ class LogThread(QThread):
                     self.gui.btnSearch.setText('Start Search')
                     break
 
+                data = record['data']
+                id = data['id']
                 if record['type'] == 1:
-                    data = record['data']
                     row = self.gui.tableViewResult.model().rowCount()
                     data['rowNum'] = row
-                    self.gui.database[data['id']] = data
+                    self.gui.database[id] = data
                     self.gui.tableViewResult.model().insertRow(
                         row,
                         [
-                            QStandardItem(data['title']),
+                            QStandardItem(isset('title', data)),
                             QStandardItem(data['address']['streetAddress']),
                             QStandardItem(data['address']['suburbAddress']),
-                            QStandardItem(", ".join(data['attributes']['propertyTypes'])),
+                            QStandardItem(
+                                ", ".join(data['attributes']['propertyTypes'])),
                             QStandardItem(data['details']['price']),
+                            QStandardItem(str(data['minPrice'])),
+                            QStandardItem(str(data['maxPrice'])),
                             QStandardItem(data['attributes']['area']),
-                            QStandardItem(data['agencies'][0]['name']),
                             QStandardItem(self.gui.targetUrl + data['pdpUrl']),
+                            QStandardItem(data['agencies'][0]['name']),
                         ]
                     )
+                elif record['type'] == 2:
+                    data = record['data']
+                    self.gui.database[id]['detail'] = data
+                    rowNum = self.gui.database[id]['rowNum']
+                    self.gui.tableViewResult.model().setItem(
+                        rowNum, 10, QStandardItem(data['lastUpdatedAt']))
+                    if len(data["agencies"]) and "salespeople" in data["agencies"][0] and len(data["agencies"][0]["salespeople"]):
+                        salespeople = data['agencies'][0]["salespeople"]
+                        contacts = ""
+                        for contact in salespeople:
+                            contacts += f'{contact["name"]} : {contact["phone"]["display"]}' + " "
+                        self.gui.tableViewResult.model().setItem(
+                            rowNum, 11, QStandardItem(contacts))
+                elif record['type'] == 3:
+                    try:
+                        data = record['data']
+                        rowNum = self.gui.database[id]['rowNum']
+                        self.gui.database[id]['minPrice'] = data['minPrice']
+                        self.gui.tableViewResult.model().setItem(
+                            rowNum, 5, QStandardItem(str(data['minPrice'])))
+                        self.gui.database[id]['maxPrice'] = data['maxPrice']
+                        self.gui.tableViewResult.model().setItem(
+                            rowNum, 6, QStandardItem(str(data['maxPrice'])))
+                    except Exception as e:
+                        # Handle other exceptions (generic Exception class)
+                        print("An error occurred")
+                        print(f"Error details: {e}")
 
                 # 确保滑动条到底
                 # cursor = self.gui.log_browser.textCursor()
@@ -919,12 +962,12 @@ class LogThread(QThread):
                 self.msleep(20)
 
 
-def crawl_run(Q, url):
+def crawl_run(Q, url, dataset, isLease):
     # CrawlerProcess
     settings = get_project_settings()
 
     process = CrawlerProcess(settings=settings)
-    process.crawl(scrapspider, Q=Q, base_url=url)
+    process.crawl(scrapspider, Q=Q, base_url=url, dataset=dataset, isLease=isLease)
     process.start()
 
     """
