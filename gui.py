@@ -176,8 +176,8 @@ class CrawlWindows(QWidget):
             # save_location = self.save_location.text().strip()
             self.datefrom = self.dateSelect.date().toString("yyyy-MM-dd")
 
-            self.tableViewResult.model().setFilterKeyColumn(1)  # 1 corresponds to the second column
-            self.tableViewResult.model().setFilterMinimumDate(self.datefrom)
+            # self.tableViewResult.model().setFilterKeyColumn(1)  # 1 corresponds to the second column
+            # self.tableViewResult.model().setFilterMinimumDate(self.datefrom)
 
             self.p = Process(target=crawl_run, args=(
                 self.Q, self.setupURL(), self.database, self.priceType))
@@ -999,7 +999,7 @@ class LogThread(QThread):
                                  street)[:4] + suburb[:2] + state[:2]
 
                     if updatedAt < self.gui.datefrom:
-                        self.gui.tableViewResult.model().item(rowNum, 0).setEnabled(False)
+                        self.gui.tableViewResult.setRowHidden(rowNum, True)
 
                     self.gui.database[id]['detail'] = data
                     self.gui.database[id]['uid'] = uid
