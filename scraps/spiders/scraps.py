@@ -11,6 +11,7 @@ class scrapspider(scrapy.Spider):
     site_url = 'https://www.realcommercial.com.au/'
     base_url = "https://www.realcommercial.com.au/for-sale/?includePropertiesWithin=includesurrounding"
     dataset = {}
+    priceRanged = []
     isLease = False
 
     def start_requests(self):
@@ -57,26 +58,48 @@ class scrapspider(scrapy.Spider):
                 items['type'] = 1
                 items['data'] = item
                 self.Q.put(items)
+                item['rangeType'] = 0
                 self.dataset[id] = item
                 yield items
             else:
                 try:
                     items['type'] = 3
 
-                    if self.dataset[id]['minPrice'] < minPrice:
-                        self.dataset[id]['minPrice'] = minPrice
+                    item = self.dataset[id]
+                    maxold = item['maxPrice']
+                    minold = item['minPrice']
 
-                    if self.dataset[id]['maxPrice'] > maxPrice or self.dataset[id]['maxPrice'] == 0:
-                        self.dataset[id]['maxPrice'] = maxPrice
+                    if (maxPrice > 0 and maxPrice < minold) or (maxold > 0 and maxold < minPrice):
+                        item['rangeType'] = 1
 
-                    items['data'] = {
-                        'id': id,
-                        'minPrice': self.dataset[id]['minPrice'],
-                        'maxPrice': self.dataset[id]['maxPrice'],
-                    }
+                    if (item['rangeType'] == 1):
+                        self.dataset[id]['minPrice'] = min(minold, minPrice)
+                        if maxold == 0 or maxPrice == 0:
+                            self.dataset[id]['maxPrice'] = 0
+                        else:
+                            self.dataset[id]['maxPrice'] = max(
+                                maxold, maxPrice)
+                    else:
+                        self.dataset[id]['minPrice'] = max(minold, minPrice)
+                        if maxold == 0 or maxPrice == 0:
+                            self.dataset[id]['maxPrice'] = max(
+                                maxold, maxPrice)
+                        else:
+                            self.dataset[id]['maxPrice'] = min(
+                                maxold, maxPrice)
 
-                    # if (self.isLease == True and minPrice + 1000 <= maxPrice) or (self.isLease == False and minPrice + 5000 <= maxPrice):
-                    self.Q.put(items)
+                    if (self.dataset[id]['minPrice'] != minold or self.dataset[id]['maxPrice'] != maxold):
+                        # if (bShow):
+                        # print(
+                        #     f'{minold} - {maxold} -> {self.dataset[id]["minPrice"]} - {self.dataset[id]["maxPrice"]}')
+                        items['data'] = {
+                            'id': id,
+                            'minPrice': self.dataset[id]['minPrice'],
+                            'maxPrice': self.dataset[id]['maxPrice'],
+                        }
+
+                        # if (self.isLease == True and minPrice + 1000 <= maxPrice) or (self.isLease == False and minPrice + 5000 <= maxPrice):
+                        self.Q.put(items)
 
                     yield items
                 except Exception as e:
@@ -97,22 +120,28 @@ class scrapspider(scrapy.Spider):
             url_parts.fragment
         ))
 
-        if maxPrice == 0:
-            if self.isLease == True:
-                maxPrice = 2000000
-            else:
-                maxPrice = 100000000
-
         if next_page_num <= 30 and page * 10 < total:
             yield scrapy.Request(url=next_page_url, callback=self.parse)
-        else:
-            if self.isLease == True and minPrice + 1000 > maxPrice:
+        elif total > 0:
+            if self.isLease == True and (maxPrice >= 2000000 or (minPrice + max(maxPrice / 100, 1000) > maxPrice and maxPrice > 0)):
                 return
-            if self.isLease == False and minPrice + 5000 > maxPrice:
+            if self.isLease == False and (maxPrice >= 100000000 or (minPrice + max(maxPrice / 100, 5000) > maxPrice and maxPrice > 0)):
                 return
-            middle = int((minPrice + maxPrice) / 2)
+
+            if maxPrice == 0:
+                if self.isLease == True:
+                    middle = 2000000
+                else:
+                    middle = 100000000
+            else:
+                middle = int((minPrice + maxPrice) / 2)
+
+            if (minPrice >= middle):
+                return
+
             params['minPrice'] = minPrice
-            params['maxPrice'] = middle
+            params['maxPrice'] = middle - 1
+            # params['includePropertiesWithin'] = 'excludesurrounding'
             params['page'] = 1
             # Encode the modified query parameters
             modified_query = urlencode(params, doseq=True)
@@ -127,9 +156,11 @@ class scrapspider(scrapy.Spider):
                 url_parts.fragment
             ))
             yield scrapy.Request(url=modified_url, callback=self.parse)
+            # print(f'new scrap {params["minPrice"]} - {params["maxPrice"]}')
 
-            params['minPrice'] = middle + 1
+            params['minPrice'] = middle
             params['maxPrice'] = maxPrice
+            # params['includePropertiesWithin'] = 'excludesurrounding'
             modified_query = urlencode(params, doseq=True)
 
             # Reconstruct the modified URL
@@ -142,6 +173,7 @@ class scrapspider(scrapy.Spider):
                 url_parts.fragment
             ))
             yield scrapy.Request(url=modified_url, callback=self.parse)
+            # print(f'new scrap {params["minPrice"]} - {params["maxPrice"]}')
 
         # elif self.jobtype == 2:
 

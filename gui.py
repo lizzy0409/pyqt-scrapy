@@ -10,9 +10,10 @@ import icons
 import re
 import urllib.parse
 from multiprocessing import Process, Manager, freeze_support
+from datetime import datetime
 
 from PyQt5.QtGui import QIcon, QStandardItemModel, QStandardItem
-from PyQt5.QtCore import QThread
+from PyQt5.QtCore import QThread, QDate
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, \
     QPushButton, QTextBrowser, QComboBox, QHBoxLayout, QVBoxLayout, QTableView, QCheckBox
 from PyQt5 import QtWidgets, QtGui, QtCore
@@ -84,11 +85,18 @@ import scrapy.core.downloader.handlers.s3
 import scrapy.core.downloader.handlers.ftp
 import scrapy.core.downloader.contextfactory
 
+import gspread
+from google.oauth2.service_account import Credentials
 
-def isset(key, array):
+credentials = Credentials.from_service_account_file('python-sheet-403604-42fa5410978e.json',
+                                                    scopes=['https://www.googleapis.com/auth/spreadsheets',
+                                                            'https://www.googleapis.com/auth/drive'])
+gc = gspread.authorize(credentials)
+
+def isset(key, array, default = ""):
     if (key in array):
         return array[key]
-    return ''
+    return default
 
 
 class CrawlWindows(QWidget):
@@ -126,6 +134,8 @@ class CrawlWindows(QWidget):
         self.priceType = self.channel % 2
         self.database = {}
         self.datefrom = ""
+        self.dateto = ""
+        self.today = datetime.now().date()
 
         self.resize(600, 300)
         self.setWindowIcon(QIcon(':icons/favicon.ico'))
@@ -174,7 +184,8 @@ class CrawlWindows(QWidget):
             # ua = self.ua_line.text().strip()
             # is_obey = True if self.obey_combo.currentText() == 'Yes' else False
             # save_location = self.save_location.text().strip()
-            self.datefrom = self.dateSelect.date().toString("yyyy-MM-dd")
+            self.datefrom = self.dateSelectFrom.date().toString("yyyy-MM-dd")
+            self.dateto = self.dateSelectTo.date().toString("yyyy-MM-dd")
 
             # self.tableViewResult.model().setFilterKeyColumn(1)  # 1 corresponds to the second column
             # self.tableViewResult.model().setFilterMinimumDate(self.datefrom)
@@ -572,26 +583,36 @@ class CrawlWindows(QWidget):
         font.setWeight(75)
         self.label_8.setFont(font)
         self.label_8.setObjectName("label_8")
+        self.label_9 = QtWidgets.QLabel(self.scrollAreaWidgetContents)
+        self.label_9.setFont(font)
+        self.label_9.setObjectName("label_9")
         self.verticalLayout_25.addWidget(self.label_8)
         font = QtGui.QFont()
         font.setPointSize(9)
-        self.dateSelect = QtWidgets.QDateEdit()
-        self.dateSelect.setFont(font)
-        self.dateSelect.setDisplayFormat("yyyy-MM-dd")
-        self.dateSelect.setObjectName("dateSelect")
-        self.verticalLayout_25.addWidget(self.dateSelect)
+        self.dateSelectFrom = QtWidgets.QDateEdit()
+        self.dateSelectFrom.setFont(font)
+        self.dateSelectFrom.setDisplayFormat("yyyy-MM-dd")
+        self.dateSelectFrom.setObjectName("dateSelectFrom")
+        self.verticalLayout_25.addWidget(self.dateSelectFrom)
+        self.verticalLayout_25.addWidget(self.label_9)
+        self.dateSelectTo = QtWidgets.QDateEdit()
+        self.dateSelectTo.setFont(font)
+        self.dateSelectTo.setDisplayFormat("yyyy-MM-dd")
+        self.dateSelectTo.setObjectName("dateSelectTo")
+        self.dateSelectTo.setDate(QDate(self.today))
+        self.verticalLayout_25.addWidget(self.dateSelectTo)
         spacerItem4 = QtWidgets.QSpacerItem(
             20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.verticalLayout_25.addItem(spacerItem4)
         self.horizontalLayout_36 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_36.setObjectName("horizontalLayout_36")
-        self.btnClearFilters = QtWidgets.QPushButton(
+        self.btnSave = QtWidgets.QPushButton(
             self.scrollAreaWidgetContents)
         font = QtGui.QFont()
         font.setPointSize(12)
-        self.btnClearFilters.setFont(font)
-        self.btnClearFilters.setObjectName("btnClearFilters")
-        self.horizontalLayout_36.addWidget(self.btnClearFilters)
+        self.btnSave.setFont(font)
+        self.btnSave.setObjectName("btnSave")
+        self.horizontalLayout_36.addWidget(self.btnSave)
         spacerItem5 = QtWidgets.QSpacerItem(
             40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout_36.addItem(spacerItem5)
@@ -664,15 +685,17 @@ class CrawlWindows(QWidget):
         self.label.setText(_translate("Dialog", "Car spaces"))
         self.label_4.setText(_translate("Dialog", "NABERS Energy Rating"))
         self.label_8.setText(_translate("Dialog", "Date Updated From"))
-        self.btnClearFilters.setText(_translate("Dialog", "Clear all filters"))
+        self.label_9.setText(_translate("Dialog", "Date Updated To"))
+        self.btnSave.setText(_translate("Dialog", "Save to GS"))
         self.btnSearch.setText(_translate("Dialog", "Start Search"))
         header_labels = ["ID", "Title", "Date Updated", "Street", "Suburb", "State", "Postcode", "Price",
-                         "Price Range", "Agency Company", "Agency Contact", "Property", "Land Area", "Floor Area", "Car Spaces", "Link"]
+                         "Price Range", "Agency Company", "Agency Contact", "Property", "Land Area", "Floor Area", "Car Spaces", "Highlights", "Description", "Link"]
         self.tableViewResult.model().setHorizontalHeaderLabels(header_labels)
 
     def connectSignal(self):
         self.btnShowFilter.clicked.connect(self.onShowFilter)
         self.btnSearch.clicked.connect(lambda: self.crawl_slot(self.btnSearch))
+        self.btnSave.clicked.connect(lambda: self.saveSheet(self.btnSave))
 
         for x in range(10):
             self.checkProperties[x].stateChanged.connect(
@@ -918,6 +941,98 @@ class CrawlWindows(QWidget):
         print(final_url)
         return final_url
 
+    def saveSheet(self, button):
+
+        now = datetime.now().strftime("%y%m%d%H%M%S%f")
+        spreadsheet = gc.create(f'realcommercial-{now}')
+        spreadsheet.share('softprom0109@gmail.com', perm_type='user', role='writer')
+
+        # Replace with your Google Sheet title
+        # spreadsheet = gc.open('PythonSheet')
+
+        # Select the worksheet where you want to upload data (e.g., the first worksheet)
+        worksheet = spreadsheet.get_worksheet(
+            0)  # 0 represents the first worksheet
+
+        # Data to be uploaded
+        data_to_upload = [
+            ["ID", "Title", "Date Updated", "Street", "Suburb", "State", "Postcode", "Price",
+                         "Price Range", "Agency Company", "Agency Contact", "Property", "Land Area", "Floor Area", "Car Spaces", "Highlights", "Description", "Link"],
+            # Add more rows as needed
+        ]
+
+        for value in self.database.values():
+            data = value
+            detail = isset('detail', data, [])
+
+            updatedAt = isset('lastUpdatedAt', detail)
+            address = data['address']
+            street = address["streetAddress"]
+            suburb = address["suburb"]
+            state = address["state"]
+            postcode = address["postcode"]
+
+            if data["minPrice"] == 0:
+                minPrice = 'Any'
+            else:
+                minPrice = data["minPrice"]
+
+            if data["maxPrice"] == 0:
+                maxPrice = 'Any'
+            else:
+                maxPrice = data["maxPrice"]
+
+            if updatedAt != "" and updatedAt <= self.datefrom or updatedAt >= self.dateto + "T23:59:59Z":
+                continue
+
+            item = []
+            item.append(data['id'])
+            item.append(isset('title', data))
+            item.append(updatedAt)
+            item.append(street)
+            item.append(suburb)
+            item.append(state)
+            item.append(postcode)
+            item.append(isset('price', data['details']))
+            item.append(f'{minPrice} - {maxPrice}')
+            item.append(data['agencies'][0]['name'])
+
+            contacts = ""
+            floor = ""
+            land = ""
+            carspace = ""
+            highlight = ""
+            description = ""
+            if ('detail' in data):
+                
+                if len(detail["agencies"]) and "salespeople" in detail["agencies"][0] and len(detail["agencies"][0]["salespeople"]):
+                    salespeople = detail['agencies'][0]["salespeople"]
+                    for contact in salespeople:
+                        contacts += f'{contact["name"]} : {contact["phone"]["display"]}' + " "
+                for attr in detail['attributes']:
+                    if attr['id'] == "floor-area":
+                        floor = attr["value"]
+                    elif attr['id'] == "land-area":
+                        land = attr["value"]
+                    elif attr['id'] == "car-spaces":
+                        carspace = attr["value"]
+                highlight = "\n".join(detail['highlights'])
+                description = detail['description'].replace("<br/>", "\n")
+                        
+            item.append(contacts)
+            item.append(", ".join(data['attributes']['propertyTypes']))
+            item.append(land)
+            item.append(floor)
+            item.append(carspace)
+            item.append(highlight)
+            item.append(description)
+            item.append(data['pdpUrl'])
+
+            data_to_upload.append(item)
+
+        # print (data_to_upload)
+        # Upload data to the Google Sheet
+        worksheet.insert_rows(data_to_upload, 2)  # Change the row number as needed
 
 class LogThread(QThread):
     def __init__(self, gui):
@@ -943,12 +1058,22 @@ class LogThread(QThread):
                     if self.gui.targetUrl not in data['pdpUrl']:
                         data['pdpUrl'] = self.gui.targetUrl + data['pdpUrl']
 
+                        if data["minPrice"] == 0:
+                            minPrice = 'Any'
+                        else:
+                            minPrice = data["minPrice"]
+
+                        if data["maxPrice"] == 0:
+                            maxPrice = 'Any'
+                        else:
+                            maxPrice = data["maxPrice"]
+
         #header_labels = ["ID", "Title", "Date Updated", "Street", "Suburb", "State", "Postcode", "Price", "Price Range", "Agency Company", "Agency Contact", "Property", "Land Area", "Floor Area", "Carspaces"]
                     self.gui.tableViewResult.model().insertRow(
                         row,
                         [
                             # ID
-                            QStandardItem(""),
+                            QStandardItem(data['id']),
                             # Title
                             QStandardItem(isset('title', data)),
                             # Date Updated
@@ -966,7 +1091,7 @@ class LogThread(QThread):
                             QStandardItem(isset('price', data['details'])),
                             # Approx. Price Range
                             QStandardItem(
-                                f'{data["minPrice"]} - {data["maxPrice"]}'),
+                                f'{minPrice} - {maxPrice}'),
                             # Agency Comp.
                             QStandardItem(
                                 data['agencies'][0]['name']),
@@ -980,6 +1105,10 @@ class LogThread(QThread):
                             # Floor Area
                             QStandardItem(data['attributes']['area']),
                             # Car spaces
+                            QStandardItem(""),
+                            # Highlights
+                            QStandardItem(""),
+                            # Description
                             QStandardItem(""),
                             # Link
                             QStandardItem(data['pdpUrl']),
@@ -998,14 +1127,12 @@ class LogThread(QThread):
                     uid = re.sub(r'[^a-zA-Z0-9]', '',
                                  street)[:4] + suburb[:2] + state[:2]
 
-                    if updatedAt < self.gui.datefrom:
+                    if updatedAt <= self.gui.datefrom or updatedAt >= self.gui.dateto + "T23:59:59Z":
                         self.gui.tableViewResult.setRowHidden(rowNum, True)
 
                     self.gui.database[id]['detail'] = data
                     self.gui.database[id]['uid'] = uid
 
-                    self.gui.tableViewResult.model().item(
-                        rowNum, 0).setText(uid)
                     self.gui.tableViewResult.model().item(
                         rowNum, 2).setText(updatedAt)
                     self.gui.tableViewResult.model().item(
@@ -1034,14 +1161,30 @@ class LogThread(QThread):
                         self.gui.tableViewResult.model().item(
                             rowNum, 10).setText(contacts)
 
+                    self.gui.tableViewResult.model().item(
+                        rowNum, 15).setText("\n".join(data['highlights']))
+                    self.gui.tableViewResult.model().item(
+                        rowNum, 16).setText(data['description'].replace("<br/>", "\n"))
+
                 elif record['type'] == 3:
                     try:
                         data = record['data']
                         rowNum = self.gui.database[id]['rowNum']
                         self.gui.database[id]['minPrice'] = data['minPrice']
                         self.gui.database[id]['maxPrice'] = data['maxPrice']
+
+                        if data["minPrice"] == 0:
+                            minPrice = 'Any'
+                        else:
+                            minPrice = data["minPrice"]
+
+                        if data["maxPrice"] == 0:
+                            maxPrice = 'Any'
+                        else:
+                            maxPrice = data["maxPrice"]
+
                         self.gui.tableViewResult.model().item(
-                            rowNum, 8).setText(f'{data["minPrice"]} - {data["maxPrice"]}')
+                            rowNum, 8).setText(f'{minPrice} - {maxPrice}')
                     except Exception as e:
                         # Handle other exceptions (generic Exception class)
                         print("An error occurred")
